@@ -36,14 +36,16 @@ class PBoard:
         ]
 
         self.puck:pPuck.PPuck = None
-        self.player1: pBar.PBar = pBar.PBar(self.barSize, self.barSpawn1, [255, 255, 255])
-        self.player2: pBar.PBar = pBar.PBar(self.barSize, self.barSpawn2, [255, 255, 255])
-        self.pucks:list[pPuck.PPuck] = [pPuck.PPuck([16, 16], self.puckSpawn.copy())]
+        self.player1: pBar.PBar = pBar.PBar(self.barSize, self.barSpawn1.copy(), [255, 255, 255])
+        self.player2: pBar.PBar = pBar.PBar(self.barSize, self.barSpawn2.copy(), [255, 255, 255])
+        self.pucks:list[pPuck.PPuck] = [pPuck.PPuck(self.puckSize, self.puckSpawn.copy())]
         self.puck = self.pucks[len(self.pucks) - 1]
         self.players:list[pBar.PBar] = [self.player1, self.player2]
 
     def start(self) -> None:
         self.puck.velocity[0] = random.choice([-self.puck.speed, self.puck.speed])
+        self.player1.location = self.barSpawn1.copy()
+        self.player2.location = self.barSpawn2.copy()
 
     def reset(self) -> None:
         self.puck.velocity = Vector2(0.0, 0.0)

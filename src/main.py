@@ -1,6 +1,7 @@
+
 import random
 import pygame as pg
-import gfx, events, inputs
+import gfx, sfx, events, inputs
 
 import pBar, pPuck, physics, pBoard
 
@@ -20,6 +21,8 @@ class Pong2:
 
     def loadAssets(self) -> None:
         self.assets.loadImage("logo", "assets/logo.png")
+        self.sounds.loadSound("puck", "assets/sfx/puck.mp3", 20)
+        self.sounds.loadSound("puck2", "assets/sfx/puck2.mp3", 20)
 
     def __init__(self) -> None:
         self.clock = pg.time.Clock()
@@ -27,6 +30,7 @@ class Pong2:
         self.window = pg.display.set_mode(self.settings.windowSize, pg.WINDOWPOS_CENTERED)
         pg.display.set_caption("Pong2")
 
+        self.sounds = sfx.SoundHandler()
         self.renderer = gfx.Renderer()
         self.events = events.EventHandler()
         self.particles = gfx.ParticleSystem(self.renderer, [0, 0], 100)
@@ -57,7 +61,11 @@ class Pong2:
         if self.events.keyPressed(inputs.Keyboard.Down): self.board.player2.moveDown()
 
         self.particles.update(self.state.deltaTime)
-        self.physics.update(self.settings.windowSize, self.state.deltaTime)
+        self.physics.update(
+            self.settings.windowSize,
+            self.state.deltaTime,
+            self.sounds
+        )
         self.board.update(self.state.deltaTime)
 
     def render(self) -> None:

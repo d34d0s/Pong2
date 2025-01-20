@@ -1,2 +1,5 @@
+temp/
 venv/
 __pycahce__/
+client.py
+server.py
