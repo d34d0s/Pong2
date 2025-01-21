@@ -1,5 +1,6 @@
 temp/
 venv/
-__pycahce__/
+.vscode/
 client.py
 server.py
+__pycache__/

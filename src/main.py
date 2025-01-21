@@ -5,6 +5,8 @@ import gfx, sfx, events, inputs
 
 import pBar, pPuck, physics, pBoard
 
+import arachnis
+
 class Pong2:
     class state:
         running:bool = True
