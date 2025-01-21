@@ -1,6 +1,4 @@
 temp/
 venv/
 .vscode/
-client.py
-server.py
 __pycache__/
