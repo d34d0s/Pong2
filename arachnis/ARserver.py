@@ -11,6 +11,7 @@ class ARserver:
 
         self.command_prefix: str = "!"
         self.command_delimiter: str = "="
+        self.command_register: dict[str, callable] = {}
 
         self.ip: str = ip
         self.port: int = port
@@ -36,6 +37,22 @@ class ARserver:
     def dumps(self) -> str:
         return self.dump().__str__()
 
+    def register_command(self, command: str, callback: callable) -> None:
+        if self.command_register.get(command, False) == False:
+            self.command_register[command] = callback
+            self.log_stdout(f"command registered: {command}")
+    
+    def query_command(self, command: str) -> callable:
+        callback = None
+        if self.command_register.get(command, False) != False:
+            callback = self.command_register[command]
+        return callback
+
+    def unregister_command(self, command: str) -> None:
+        if self.command_register.get(command, False) != False:
+            callback = self.command_register.pop(command)
+            self.log_stdout(f"command unregistered: {command}")
+
     def startup(self) -> None:
         self.log_stdout(f"starting: {self.ip}:{self.port}")
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) # allows server socket to be 're-bound'
@@ -50,22 +67,23 @@ class ARserver:
         self.running = True
         self.log_stdout(f"started: {self.ip}:{self.port}")
 
-    def read_message(self, client_socket: socket.socket) -> str:
+    def read_message(self, client_socket: socket.socket) -> dict:
         try:
-            message = client_socket.recv(self.buffer_size).decode(self.codec)
+            message: dict = json.loads(client_socket.recv(self.buffer_size).decode(self.codec))
             if message:
                 self.log_stdout(f"message read: {message}")
                 return message
-            return ""
+            return {"command": None, "payload": None}
         except Exception as e:
             self.log_stdout(f"read exception: {e}")
-            return ""
+            return {"command": None, "payload": None}
 
-    def write_message(self, client_socket: socket.socket, message: str) -> int:
+    def write_message(self, client_socket: socket.socket, message: dict) -> int:
         try:
             sent = 0
+            encoded = json.dumps(message).encode(self.codec)
             while sent < len(message):
-                sent += client_socket.send(message[sent:self.buffer_size].encode(self.codec))
+                sent += client_socket.send(encoded[sent:self.buffer_size])
             self.log_stdout(f"message written: '{message}({sent}bytes)'")
             return sent
         except Exception as e:
@@ -74,7 +92,7 @@ class ARserver:
 
     def shout_message(self, client_socket: socket.socket, message: str) -> None:
         try:
-            address = client_socket.getpeername()
+            address = client_socket.getpeername() 
             for client in self.message_queues.keys():
                 if client != client_socket:
                     self.queue_message(client, f"[SHOUT] from ({address[0]}, {address[1]}): {message}")
@@ -112,27 +130,30 @@ class ARserver:
             )
         except Exception as e: self.log_stdout(f"queue message exception: {e}")
 
-    def parse_message(self, client_socket: socket.socket, message: str) -> None:
-        if message.startswith(self.command_prefix):
-            #example 1: "!dc="
-            #example 2: "!shout=Hello World!"
-            
-            if message.__contains__(self.command_delimiter):
-                command, payload = map(str.strip, message[1:].split(self.command_delimiter))
-            else:
-                command = message[1:].strip()
-                payload = ""
-
-            # registered commands with callbacks
+    def parse_message(self, client_socket: socket.socket, message: dict) -> None:
+        command = message["command"]
+        payload = message["payload"]
+        if command:
+            # handle default commands
             if command == "sd":
                 self.shutdown()
+                return
             if command == "dc":
                 self.handle_disconnection(client_socket)
+                return
             if command == "list":
                 client_list = ", ".join(str(s.getpeername()) for s in list(self.message_queues.keys()))
                 self.queue_message(client_socket, f"connected: {client_list}")
+                return
             if command == "shout":
                 self.shout_message(client_socket, payload)
+                return
+
+            # query and call registered non-default callbacks
+            try:
+                callback = self.query_command(command)
+                if callable(callback): callback(payload)
+            except Exception as e: self.log_stdout(f"callback exception: {e}")
         else:
             # server "default behavior" is to echo
             self.queue_message(client_socket, f"echo: {message}")
@@ -142,6 +163,14 @@ class ARserver:
         client_socket.setblocking(False)
         self.message_queues[client_socket] = []
         self.selector.register(client_socket, selectors.EVENT_READ, self.handle_client)
+        
+        # recv client info
+        client_info = json.loads(client_socket.recv(self.buffer_size).decode(self.codec))
+        self.log_stdout(f"client info: {client_info}")
+        
+        # send over current server info
+        client_socket.sendall(json.dumps(self.dump()).encode(self.codec))
+
         self.log_stdout(f"connected: {client_address}")
     
     def handle_disconnection(self, client_socket: socket.socket) -> None:
@@ -183,8 +212,14 @@ class ARserver:
         self.running = False
         self.log_stdout("shut down")
 
+
 if __name__ == "__main__":
     server = ARserver("Spider-Web")
+
+    def scream_callback(payload: str) -> None:
+        server.log_stdout("SCREAMING CALLBACK")
+    server.register_command("SCREAM", scream_callback)
+
     server.startup()
     server.run()
     server.shutdown()
