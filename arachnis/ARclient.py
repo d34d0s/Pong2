@@ -16,6 +16,7 @@ class ARclient:
         self.buffer_size: int = 1024
         self.server_name: str = None
         self.command_prefix: str = None
+        self.commandarg_prefix: str = None
         self.command_delimiter: str = None
         self.server_address: tuple[str, int] = None
 
@@ -23,7 +24,7 @@ class ARclient:
         return {
             "name": self.name,
             "ip": self.address[0],
-            "port": self.address[0]
+            "port": self.address[1]
         }
     
     def dumps(self) -> str:
@@ -36,24 +37,20 @@ class ARclient:
         if self.connected:
             built = {"command": None, "payload": None}
             if message.startswith(self.command_prefix):
-                print(f"CLIENT COMMAND ISSUED: {message}")
-
                 if message.__contains__(self.command_delimiter):
                     built["command"], built["payload"] = map(str.strip, message[1:].split(self.command_delimiter))
                 else:   # no command delimiter, we assume the entire message is the command!
                     built["command"] = message[1:].strip()
             else:
-                print(f"CLIENT MESSAGE: {message}")
                 built["payload"] = message
             return built
 
     def read_message(self) -> None:
-        while self.running:
-            if self.connected:
-                try:
-                    message: dict = json.loads(self.socket.recv(self.buffer_size).decode(self.codec))
-                    if message: self.log_stdout(f"message read: {message}")
-                except Exception as e: self.log_stdout(f"read exception: {e}")
+        while self.connected:
+            try:
+                message: dict = json.loads(self.socket.recv(self.buffer_size).decode(self.codec))
+                if message: self.log_stdout(f"message read: {message}")
+            except Exception as e: self.log_stdout(f"read exception: {e}")
 
     def write_message(self, message: dict) -> int:
         if self.connected:
@@ -73,7 +70,7 @@ class ARclient:
             try:
                 self.server_address = (ip, port)
                 self.socket.connect(self.server_address)
-                self.address = self.socket.getpeername()
+                self.address = self.socket.getsockname()
 
                 # send client info
                 self.socket.sendall(json.dumps(self.dump()).encode(self.codec))
@@ -85,6 +82,7 @@ class ARclient:
                     self.server_name = server_info["name"]
                     self.buffer_size = server_info["buffer_size"]
                     self.command_prefix = server_info["command_prefix"]
+                    self.commandarg_prefix = server_info["commandarg_prefix"]
                     self.command_delimiter = server_info["command_delimiter"]
 
                     self.log_stdout(f"server info: {server_info}")
@@ -116,15 +114,14 @@ class ARclient:
                 address = self.server_address
                 self.log_stdout(f"disconnecting: {address}")
 
+                with self.thread_lock:
+                    self.connected = False
+
                 self.socket.close()
                 self.read_thread.join(timeout=2.0)
                 
                 self.address = None
                 self.server_address = None
-                
-                with self.thread_lock:
-                    self.connected = False
-                self.thread_lock.release()
                 
                 self.log_stdout(f"disconnected: {address}")
             except Exception as e: self.log_stdout(f"exception: {e}")
@@ -145,7 +142,7 @@ class ARclient:
             self.log_stdout("shut down")
 
 if __name__ == "__main__":
-    client = ARclient("Bug-Zapper")
+    client = ARclient("mikeman123")
     client.connect()
     client.run()
     client.shutdown()

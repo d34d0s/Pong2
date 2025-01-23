@@ -9,8 +9,9 @@ class ARserver:
         self.queue_size: int = 1024
         self.buffer_size: int = 1024
 
-        self.command_prefix: str = "!"
-        self.command_delimiter: str = "="
+        self.command_prefix: str = "/"
+        self.commandarg_prefix: str = "|"
+        self.command_delimiter: str = "\\"
         self.command_register: dict[str, callable] = {}
 
         self.ip: str = ip
@@ -31,6 +32,7 @@ class ARserver:
             "codec": self.codec,
             "buffer_size": self.buffer_size,
             "command_prefix": self.command_prefix,
+            "commandarg_prefix": self.commandarg_prefix,
             "command_delimiter": self.command_delimiter,
         }
 
@@ -66,6 +68,19 @@ class ARserver:
         )
         self.running = True
         self.log_stdout(f"started: {self.ip}:{self.port}")
+
+    def build_message(self, message: str) -> dict:
+        try:
+            built = {"command": None, "payload": None}
+            if message.startswith(self.command_prefix):
+                if message.__contains__(self.command_delimiter):
+                    built["command"], built["payload"] = map(str.strip, message[1:].split(self.command_delimiter))
+                else:   # no command delimiter, we assume the entire message is the command!
+                    built["command"] = message[1:].strip()
+            else:
+                built["payload"] = message
+            return built
+        except Exception as e: self.log_stdout(f"exception: {e}")
 
     def read_message(self, client_socket: socket.socket) -> dict:
         try:
@@ -131,9 +146,18 @@ class ARserver:
         except Exception as e: self.log_stdout(f"queue message exception: {e}")
 
     def parse_message(self, client_socket: socket.socket, message: dict) -> None:
+        commandargs = None
         command = message["command"]
         payload = message["payload"]
+
         if command:
+            # extract command arguments
+            if command.__contains__(self.commandarg_prefix):
+                parts = command.split(self.commandarg_prefix)
+                command = parts[0]
+                commandargs = parts[1:]
+                self.log_stdout(f"command arguments supplied: {commandargs}")
+
             # handle default commands
             if command == "sd":
                 self.shutdown()
