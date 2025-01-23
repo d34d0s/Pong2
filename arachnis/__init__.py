@@ -2,6 +2,6 @@
 Arachnis - Client/Server Programming Made Simple
 """
 
-from .server import *
-from .client import *
-from .network import *
+from .ARserver import *
+from .ARclient import *
+from .ARnetwork import *

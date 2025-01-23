@@ -1,16 +1,9 @@
-import socket, selectors
+import json, socket, selectors
 from collections import defaultdict
 
 class ARserver:
-    def __init__(self, name: str, ip="127.0.0.1", port=8000):
+    def __init__(self, name: str, ip="127.0.0.1", port=8000) -> None:
         self.name: str = name
-        self.ip: str = ip
-        self.port: int = port
-        self.address: tuple[str, int] = (ip, port)
-        self.selector: selectors.DefaultSelector = selectors.DefaultSelector()
-        self.message_queues: dict[socket.socket, list[str]] = defaultdict(list)
-        self.socket: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
         self.codec: str = "utf-8"
         self.running: bool = False
         self.queue_size: int = 1024
@@ -19,10 +12,31 @@ class ARserver:
         self.command_prefix: str = "!"
         self.command_delimiter: str = "="
 
+        self.ip: str = ip
+        self.port: int = port
+        self.address: tuple[str, int] = (ip, port)
+        self.selector: selectors.DefaultSelector = selectors.DefaultSelector()
+        self.message_queues: dict[socket.socket, list[str]] = defaultdict(list)
+        self.socket: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
     def log_stdout(self, message: str) -> None:
         print(f"[ARSERVER-LOG] {self.name} | {message}\n")
 
-    def startup(self):
+    def dump(self) -> dict:
+        return {
+            "ip": self.ip,
+            "port": self.port,
+            "name": self.name,
+            "codec": self.codec,
+            "buffer_size": self.buffer_size,
+            "command_prefix": self.command_prefix,
+            "command_delimiter": self.command_delimiter,
+        }
+
+    def dumps(self) -> str:
+        return self.dump().__str__()
+
+    def startup(self) -> None:
         self.log_stdout(f"starting: {self.ip}:{self.port}")
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) # allows server socket to be 're-bound'
         self.socket.bind((self.ip, self.port))
@@ -40,11 +54,11 @@ class ARserver:
         try:
             message = client_socket.recv(self.buffer_size).decode(self.codec)
             if message:
-                self.log_stdout(f"Message Received: {message}")
+                self.log_stdout(f"message read: {message}")
                 return message
             return ""
         except Exception as e:
-            self.log_stdout(f"Read Exception: {e}")
+            self.log_stdout(f"read exception: {e}")
             return ""
 
     def write_message(self, client_socket: socket.socket, message: str) -> int:
@@ -52,12 +66,13 @@ class ARserver:
             sent = 0
             while sent < len(message):
                 sent += client_socket.send(message[sent:self.buffer_size].encode(self.codec))
+            self.log_stdout(f"message written: '{message}({sent}bytes)'")
             return sent
         except Exception as e:
-            self.log_stdout(f"Write Exception: {e}")
+            self.log_stdout(f"write Exception: {e}")
             return 0
 
-    def shout_message(self, client_socket: socket.socket, message: str):
+    def shout_message(self, client_socket: socket.socket, message: str) -> None:
         try:
             address = client_socket.getpeername()
             for client in self.message_queues.keys():
@@ -97,7 +112,7 @@ class ARserver:
             )
         except Exception as e: self.log_stdout(f"queue message exception: {e}")
 
-    def parse_message(self, client_socket: socket.socket, message: str):
+    def parse_message(self, client_socket: socket.socket, message: str) -> None:
         if message.startswith(self.command_prefix):
             #example 1: "!dc="
             #example 2: "!shout=Hello World!"
@@ -122,21 +137,21 @@ class ARserver:
             # server "default behavior" is to echo
             self.queue_message(client_socket, f"echo: {message}")
 
-    def handle_connection(self, server_socket: socket.socket, mask: int):
+    def handle_connection(self, server_socket: socket.socket, mask: int) -> None:
         client_socket, client_address = server_socket.accept()
         client_socket.setblocking(False)
         self.message_queues[client_socket] = []
         self.selector.register(client_socket, selectors.EVENT_READ, self.handle_client)
         self.log_stdout(f"connected: {client_address}")
     
-    def handle_disconnection(self, client_socket: socket.socket):
+    def handle_disconnection(self, client_socket: socket.socket) -> None:
         address = client_socket.getpeername()
         self.message_queues.pop(client_socket, None)  # remove the message queue
         self.selector.unregister(client_socket)
         client_socket.close()
         self.log_stdout(f"disconnected: {address}")
 
-    def handle_client(self, client_socket: socket.socket, mask: int):
+    def handle_client(self, client_socket: socket.socket, mask: int) -> None:
         try:
             if mask & selectors.EVENT_READ:  # read events
                 message = self.read_message(client_socket)
