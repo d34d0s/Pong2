@@ -15,8 +15,8 @@ class Pong2:
     class settings:
         fps:float = 60.0
         # windowSize:list[int] = [400, 300]
-        # windowSize:list[int] = [800, 600]
-        windowSize:list[int] = [1280, 720]
+        windowSize:list[int] = [800, 600]
+        # windowSize:list[int] = [1280, 720]
 
         barSpeed:float = 500.0
 
@@ -45,11 +45,8 @@ class Pong2:
         [self.renderer.addSprite(player) for player in self.board.players]
         self.physics = physics.PPhysics(self.board)
 
+        self.fixed_accumulator: float = 0.0
         self.client = client.P2Client("D34D.DEV", [*self.board.player1.location])
-    
-    def client_update(self) -> None:
-        position = {self.client.playerid: [*self.board.player1.location]}
-        self.client._write(self.client.build_request("move", position))
 
     def update(self) -> None:
         if self.events.keyPressed(inputs.Keyboard.Escape): self.state.running = False
@@ -61,19 +58,23 @@ class Pong2:
 
         if self.events.keyPressed(inputs.Keyboard.A):
             self.board.player1.moveLeft()
-            self.client_update()
 
         if self.events.keyPressed(inputs.Keyboard.D):
             self.board.player1.moveRight()
-            self.client_update()
 
         if self.events.keyPressed(inputs.Keyboard.W):
             self.board.player1.moveUp()
-            self.client_update()
 
         if self.events.keyPressed(inputs.Keyboard.S):
             self.board.player1.moveDown()
-            self.client_update()
+
+        if self.fixed_accumulator % (1/60) == 0:
+            self.client.write(self.client.build_request("move", [*self.board.player1.location]))
+            self.board.player2.location[0] = self.settings.windowSize[0] - self.client.opponent_location[0]
+            self.board.player2.location[1] = self.client.opponent_location[1]
+            self.fixed_accumulator = 0.0
+        else:
+            self.fixed_accumulator += self.state.deltaTime
 
         if self.events.keyPressed(inputs.Keyboard.Left):self.board.player2.moveLeft()
         if self.events.keyPressed(inputs.Keyboard.Right):self.board.player2.moveRight()
