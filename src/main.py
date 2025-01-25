@@ -4,6 +4,7 @@ import pygame as pg
 import gfx, sfx, events, inputs
 
 import pBar, pPuck, physics, pBoard
+from backend import  client
 
 class Pong2:
     class state:
@@ -43,18 +44,37 @@ class Pong2:
         [self.renderer.addSprite(puck) for puck in self.board.pucks]
         [self.renderer.addSprite(player) for player in self.board.players]
         self.physics = physics.PPhysics(self.board)
+
+        self.client = client.P2Client("D34D.DEV", [*self.board.player1.location])
     
+    def client_update(self) -> None:
+        position = {self.client.playerid: [*self.board.player1.location]}
+        self.client._write(self.client.build_request("move", position))
+
     def update(self) -> None:
         if self.events.keyPressed(inputs.Keyboard.Escape): self.state.running = False
         
         if self.events.keyPressed(inputs.Keyboard.F1): self.board.start()
         if self.events.keyPressed(inputs.Keyboard.F2): self.board.reset()
-
-        if self.events.keyPressed(inputs.Keyboard.A):self.board.player1.moveLeft()
-        if self.events.keyPressed(inputs.Keyboard.D):self.board.player1.moveRight()
-        if self.events.keyPressed(inputs.Keyboard.W): self.board.player1.moveUp()
-        if self.events.keyPressed(inputs.Keyboard.S): self.board.player1.moveDown()
         
+        if self.events.keyPressed(inputs.Keyboard.F5): self.client.connect()
+
+        if self.events.keyPressed(inputs.Keyboard.A):
+            self.board.player1.moveLeft()
+            self.client_update()
+
+        if self.events.keyPressed(inputs.Keyboard.D):
+            self.board.player1.moveRight()
+            self.client_update()
+
+        if self.events.keyPressed(inputs.Keyboard.W):
+            self.board.player1.moveUp()
+            self.client_update()
+
+        if self.events.keyPressed(inputs.Keyboard.S):
+            self.board.player1.moveDown()
+            self.client_update()
+
         if self.events.keyPressed(inputs.Keyboard.Left):self.board.player2.moveLeft()
         if self.events.keyPressed(inputs.Keyboard.Right):self.board.player2.moveRight()
         if self.events.keyPressed(inputs.Keyboard.Up): self.board.player2.moveUp()
@@ -86,6 +106,7 @@ class Pong2:
             self.state.deltaTime = self.clock.tick(self.settings.fps) / 1000.0 # ms -> sec
             self.update()
             self.render()
-            pg.display.flip()    
+            pg.display.flip()
+        self.client.disconnect()
 
 Pong2().run()
