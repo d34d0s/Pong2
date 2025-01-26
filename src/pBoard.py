@@ -8,24 +8,20 @@ import pBar, pPuck
 class PBoard:
     def __init__(self, windowSize:list[int]) -> None:
         pg.font.init()
-        self.font: pg.Font = pg.Font("assets/fonts/megamax.ttf", 18)
+        self.font: pg.Font = pg.Font("assets/fonts/megamax.ttf", 24)
 
         self.windowSize:list[int] = windowSize
-
-        self.winScore: int = 6
-        self.scores: list[int] = [0, 0]
-
         self.halfMark:pg.Surface = gfx.createSurface([2, windowSize[1]], [0, 0, 0])
         self.leftGoal:pg.Surface = gfx.createSurface([100, windowSize[1]], [0, 0, 0])
         self.rightGoal:pg.Surface = gfx.createSurface([100, windowSize[1]], [0, 0, 0])
 
-        self.puckSize = Vector2(16, 16)
+        self.puckSize = Vector2(32, 32)
         self.puckSpawn = Vector2(
             self.windowSize[0] / 2 - (self.puckSize[0] / 2),
             self.windowSize[1] / 2 - self.puckSize[1] / 2
         )
 
-        self.barSize = Vector2(16, self.windowSize[1] / 4)
+        self.barSize = Vector2(32, self.windowSize[1] / 4)
         self.barSpawn1 = Vector2(
             self.windowSize[0] / 8,
             self.windowSize[1] / 2 - self.barSize[1] / 2
@@ -36,9 +32,20 @@ class PBoard:
         )
 
         self.puck:pPuck.PPuck = pPuck.PPuck(self.puckSize, self.puckSpawn.copy())
-        self.player1: pBar.PBar = pBar.PBar(self.barSize, self.barSpawn1.copy(), [255, 255, 255])
-        self.player2: pBar.PBar = pBar.PBar(self.barSize, self.barSpawn2.copy(), [255, 255, 255])
-        self.players:list[pBar.PBar] = [self.player1, self.player2]
+        self.player1: pBar.PBar = pBar.PBar(self.barSize, self.barSpawn1.copy(), color=[121, 240, 38], name="Player1")
+        self.player2: pBar.PBar = pBar.PBar(self.barSize, self.barSpawn2.copy(), color=[63, 88, 240], name="Player2")
+
+        self.winScore: int = 6
+        self.players: dict[str, pBar.PBar] = {
+            self.player1.name: {
+                "score": 0,
+                "bar": self.player1
+            },
+            self.player2.name: {
+                "score": 0,
+                "bar": self.player2
+            },
+        }
 
     def start(self) -> None:
         self.puck.location = self.puckSpawn.copy()
@@ -49,42 +56,49 @@ class PBoard:
         self.player2.location = self.barSpawn2.copy()
 
     def reset(self) -> None:
-        self.scores = [0, 0]
-        
         self.puck.velocity = Vector2(0.0, 0.0)
         self.puck.location = self.puckSpawn.copy()
         
         self.player1.location = self.barSpawn1.copy()
+        self.players[self.player1.name]["score"] = 0
+        
         self.player2.location = self.barSpawn2.copy()
+        self.players[self.player2.name]["score"] = 0
 
     def isGoal(self, puck: pPuck.PPuck) -> bool:
         result = False
-        if puck.location[0] <= 0:
-            self.scores[1] += 1
+        if (puck.location[0] + puck.size[0]) >= self.windowSize[0]:
+            self.players[self.player1.name]["score"] += 1
             result = True
-        elif (puck.location[0] + puck.size[0]) >= self.windowSize[0]:
-            self.scores[0] += 1
+        elif puck.location[0] <= 0:
+            self.players[self.player2.name]["score"] += 1
             result = True
         return result
 
-    def renderScores(self, target: pg.Surface) -> None:
-        score1: pg.Surface = self.font.render(f"{self.player1.name}: {self.scores[0]}", antialias=True, color=[255, 255, 255])
+    def handleScores(self, window: pg.Surface, deltaTime: float) -> None:
         scorePos1 = [100, 0]
+        score1: pg.Surface = self.font.render(
+            antialias=True, color=self.player1.color,
+            text=f"{self.player1.name}: {self.players[self.player1.name]["score"]}"
+        )
 
-        score2: pg.Surface = self.font.render(f"{self.player2.name}: {self.scores[1]}", antialias=True, color=[255, 255, 255])
+        score2: pg.Surface = self.font.render(
+            antialias=True, color=self.player2.color,
+            text=f"{self.player2.name}: {self.players[self.player2.name]["score"]}"
+        )
         scorePos2 = [
-            self.windowSize[0] - self.rightGoal.get_size()[0] - score2.get_size()[0],
+            (self.windowSize[0] - self.rightGoal.get_size()[0]) - score2.get_size()[0],
             0
         ]
-        
-        target.blit(score1, scorePos1)
-        target.blit(score2, scorePos2)
 
-    def render(self, target: pg.Surface) -> None:
-        target.blit(self.leftGoal, [0, 0])
-        target.blit(self.halfMark, [self.windowSize[0] / 2, 0])
-        target.blit(self.rightGoal, [self.windowSize[0] - self.rightGoal.get_size()[0], 0])
-        self.renderScores(target)
+        window.blit(score1, scorePos1)
+        window.blit(score2, scorePos2)
+
+    def render(self, window: pg.Surface, deltaTime: float) -> None:
+        window.blit(self.leftGoal, [0, 0])
+        window.blit(self.halfMark, [self.windowSize[0] / 2, 0])
+        window.blit(self.rightGoal, [self.windowSize[0] - self.rightGoal.get_size()[0], 0])
+        self.handleScores(window, deltaTime)
 
     def update(self, deltaTime:float) -> None:
         self.puck.update(deltaTime)
@@ -97,16 +111,17 @@ class PBoard:
             self.player2.location[0] = self.windowSize[0] / 2 + self.halfMark.get_size()[0]
         
         for player in self.players:
-            player.update(deltaTime)
+            playerBar = self.players[player]["bar"]
+            playerBar.update(deltaTime)
 
             # player window bound x
-            if player.location[0] < 0:
-                player.location[0] = 0
-            if player.location[0] + player.size[0] > self.windowSize[0]:
-                player.location[0] = self.windowSize[0] - player.size[0]
+            if playerBar.location[0] < 0:
+                playerBar.location[0] = 0
+            if playerBar.location[0] + playerBar.size[0] > self.windowSize[0]:
+                playerBar.location[0] = self.windowSize[0] - playerBar.size[0]
 
             # player window bound y
-            if player.location[1] < 0:
-                player.location[1] = 0
-            if player.location[1] + player.size[1] > self.windowSize[1]:
-                player.location[1] = self.windowSize[1] - player.size[1]
+            if playerBar.location[1] < 0:
+                playerBar.location[1] = 0
+            if playerBar.location[1] + playerBar.size[1] > self.windowSize[1]:
+                playerBar.location[1] = self.windowSize[1] - playerBar.size[1]

@@ -4,34 +4,54 @@ from pygame.math import Vector2
 
 # ------------------------------------------------------------ #
 class Sprite(pg.sprite.Sprite):
-    def __init__(self, size: list[int], speed: float, location: list[float], color: list[int] = [0, 25, 25], rotate: bool = False) -> None:
+    def __init__(self, size: list[int], speed: float, location: list[float], color: list=[255, 255, 255], rotate: bool = False) -> None:
         super().__init__([])
         self.size = size
         self.color = color
         self.speed = speed
 
-        self._image = pg.Surface(size, pg.SRCALPHA)  # Use SRCALPHA for transparency
+        self._image = pg.Surface(size, pg.SRCALPHA)
         self._image.fill(color)
 
         self.image = self._image
         self.rect = self.image.get_rect(topleft=location)
 
         self.rotation = 0.0
-        self.rot_speed = 0.0
+        self.rotSpeed = 0.0
         self.rotate: bool = rotate
         self.velocity = pg.math.Vector2(0, 0)
         self.location = pg.math.Vector2(location)
+    
+    def fillImage(self, color: list[int]=[255, 255, 255]) -> None:
+        self._image.fill(color)
+
+    def setColor(self, color: list[int]=[255, 255, 255]) -> None:
+        self._image.fill(color)
+        self.color = color
+
+    def setImage(self, image: pg.Surface=None, color: list=[255, 255, 255], wireSize: int = 0) -> None:
+        if image is None:
+            self._image = pg.Surface(self.size, pg.SRCALPHA)
+            if wireSize != 0:
+                drawRect(self._image, self.size, self._image.get_rect().topleft, color, wireSize)
+            else:
+                self._image.fill(color)
+        else:
+            self._image = image
+
+        self.image = self._image
+        self.rect = self.image.get_rect(topleft=self.location)
 
     def update(self, deltaTime: float) -> None:
         self.location += self.velocity * deltaTime
         self.rect.topleft = self.location
 
-        if self.rotate and self.rot_speed != 0:
-            self.rotation += self.rot_speed * deltaTime
+        if self.rotate and self.rotSpeed != 0:
+            self.rotation += self.rotSpeed * deltaTime
 
-            self.rot_speed *= 0.9
-            if abs(self.rot_speed) < 0.1:
-                self.rot_speed = 0.0
+            self.rotSpeed *= 0.9
+            if abs(self.rotSpeed) < 0.1:
+                self.rotSpeed = 0.0
 
             self.image = pg.transform.rotate(self._image, -self.rotation)
             self.rect = self.image.get_rect(center=self.rect.center)
@@ -124,9 +144,10 @@ class Animation:
 
 # ------------------------------------------------------------ #
 class Particle(Sprite):
-    def __init__(self, lifeSpan: float, size:list[int], location:list[float], color:list[int]=[0, 255, 0]) -> None:
+    def __init__(self, lifeSpan: float, size:list[int], location:list[float], color:list[int]=[0, 255, 0], wireSize: int=0) -> None:
         super().__init__(size, 0.0, location, color)
         self.lifeSpan: float = lifeSpan
+        self.setImage(color=color, wireSize=wireSize)
 
     def kill(self) -> None:
         del self
@@ -151,12 +172,12 @@ class ParticleSystem:
         self.location = location
         self.renderer = renderer
 
-    def addParticle(self, lifeSpan: float, size: list[int], location, velocity:list[float]=Vector2(0, 0), color: list[int]=[255, 255, 255]) -> None:
+    def addParticle(self, lifeSpan: float, size: list[int], location, velocity:list[float]=Vector2(0, 0), color: list[int]=[255, 255, 255], wireSize: int=0) -> None:
         if len(self.particles)+1 > self.maximum: return None
         particle = Particle(lifeSpan, size, [
             location[0] + self.location[0],
             location[1] + self.location[1]
-        ], color)
+        ], color, wireSize)
         particle.velocity = Vector2(velocity)
         self.particles.append(particle)
         self.renderer.addSprite(particle)
@@ -170,13 +191,54 @@ class ParticleSystem:
 # ------------------------------------------------------------ #
 
 # ------------------------------------------------------------ #
+class DevDisplay:
+    def __init__(self, size: list[int], location: list[float], fontPath:str, textColor:list[int]=[255, 255, 255], textSize: int=18):
+        self.size: list[int] = size
+        self.location: list[float] = location
+        self.surface: pg.Surface = createSurface(size, textColor)
+        
+        self.textSize: int = textSize
+        self.textFields: dict[str, str] = {}
+        self.textColor: list[int] = textColor
+        self.font: pg.Font = pg.Font(fontPath, textSize)
+
+    def setTextField(self, field: str, text: str) -> bool:
+        try:
+            self.textFields[field] = text
+            return True
+        except KeyError as e:
+            print(f"DevDisplay TextField Not Found: {field}")
+            return False
+    
+    def remTextField(self, field: str) -> bool:
+        try:
+            self.textFields.pop(field)
+            return True
+        except KeyError as e:
+            print(f"DevDisplay TextField Not Found: {field}")
+            return False
+
+    def render(self, window: pg.Surface) -> None:
+        window.blit(self.font.render(f"Dev-Display", True, self.textColor), self.location)
+        for index, field in enumerate(self.textFields.keys()):
+            text = f"{field}: {self.textFields[field]}"
+            textSurface = self.font.render(text, True, self.textColor)
+            textLocation = [
+                self.location[0],
+                self.location[1] + (textSurface.get_size()[1] * (index + 1))
+            ]
+            window.blit(textSurface, textLocation)
+
+# ------------------------------------------------------------ #
+
+# ------------------------------------------------------------ #
 def showMouse() -> None:
     pg.mouse.set_visible(True)
 
 def hideMouse() -> None:
     pg.mouse.set_visible(False)
 
-def createSurface(size:list[int], color:list[int]) -> pg.Surface :
+def createSurface(size:list[int], color:list[int]) -> pg.Surface:
     s:pg.Surface = pg.Surface(size)
     s.fill(color)
     return s
