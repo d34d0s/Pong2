@@ -76,23 +76,27 @@ class PBoard:
         return result
 
     def handleScores(self, window: pg.Surface, deltaTime: float) -> None:
-        scorePos1 = [100, 0]
-        score1: pg.Surface = self.font.render(
+        score1 = self.players[self.player1.name]["score"]
+        score1Text = f"{self.player1.name}: {score1}"
+        score1Surface: pg.Surface = self.font.render(
             antialias=True, color=self.player1.color,
-            text=f"{self.player1.name}: {self.players[self.player1.name]["score"]}"
+            text=score1Text
         )
+        score1Location = [100, 0]
 
-        score2: pg.Surface = self.font.render(
+        score2 = self.players[self.player2.name]["score"]
+        score2Text = f"{self.player2.name}: {score2}"
+        score2Surface: pg.Surface = self.font.render(
             antialias=True, color=self.player2.color,
-            text=f"{self.player2.name}: {self.players[self.player2.name]["score"]}"
+            text=score2Text
         )
-        scorePos2 = [
-            (self.windowSize[0] - self.rightGoal.get_size()[0]) - score2.get_size()[0],
+        score2Location = [
+            (self.windowSize[0] - self.rightGoal.get_size()[0]) - score2Surface.get_size()[0],
             0
         ]
 
-        window.blit(score1, scorePos1)
-        window.blit(score2, scorePos2)
+        window.blit(score1Surface, score1Location)
+        window.blit(score2Surface, score2Location)
 
     def render(self, window: pg.Surface, deltaTime: float) -> None:
         window.blit(self.leftGoal, [0, 0])

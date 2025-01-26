@@ -47,15 +47,14 @@ class PPhysics:
             )
 
     def checkCollisions(self, particleSystem: gfx.ParticleSystem, soundHandler: sfx.SoundHandler) -> None:
-        if self.aabb(self.board.player1, self.board.puck):
-            rotSpeed = 200 * (-1 if self.board.puck.velocity[1] < 0 else 1)
+        rotSpeed = 200 * (-1 if self.board.puck.velocity[1] < 0 else 1)
+        if self.aabb(self.board.player1, self.board.puck) and self.board.puck.velocity[0] < 0:
             self.board.puck.location[0] = (self.board.player1.location[0] + self.board.player1.size[0]) + 1
             self.board.puck.velocity[0] = -self.board.puck.velocity[0]
             self.collisionFX(particleSystem, soundHandler)
             self.board.player1.onHit(rotSpeed)
 
-        if self.aabb(self.board.player2, self.board.puck):
-            rotSpeed = 200 * (-1 if self.board.puck.velocity[1] < 0 else 1)
+        if self.aabb(self.board.player2, self.board.puck) and self.board.puck.velocity[0] > 0:
             self.board.puck.location[0] = (self.board.player2.location[0] - self.board.puck.size[0]) - 1
             self.board.puck.velocity[0] = -self.board.puck.velocity[0]
             self.collisionFX(particleSystem, soundHandler)

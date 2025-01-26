@@ -8,18 +8,6 @@ class PBar(gfx.Sprite):
         self.hit: bool = False
         self.flashTime: float = 0.0
 
-    def moveRight(self) -> None:
-        self.velocity[0] = self.speed
-    
-    def moveLeft(self) -> None:
-        self.velocity[0] = -self.speed
-    
-    def moveUp(self) -> None:
-        self.velocity[1] = -self.speed
-    
-    def moveDown(self) -> None:
-        self.velocity[1] = self.speed
-
     def onHit(self, rotSpeed: float) -> None:
         self.rotSpeed = rotSpeed
         self.flashTime = 0.2

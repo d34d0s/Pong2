@@ -19,9 +19,22 @@ class Sprite(pg.sprite.Sprite):
         self.rotation = 0.0
         self.rotSpeed = 0.0
         self.rotate: bool = rotate
+        self.friction: float = (90/100) # dampens movement by 90% by default
         self.velocity = pg.math.Vector2(0, 0)
         self.location = pg.math.Vector2(location)
     
+    def moveRight(self) -> None:
+        self.velocity[0] = self.speed
+    
+    def moveLeft(self) -> None:
+        self.velocity[0] = -self.speed
+    
+    def moveUp(self) -> None:
+        self.velocity[1] = -self.speed
+    
+    def moveDown(self) -> None:
+        self.velocity[1] = self.speed
+
     def fillImage(self, color: list[int]=[255, 255, 255]) -> None:
         self._image.fill(color)
 

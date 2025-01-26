@@ -18,12 +18,10 @@ class Pong2:
         # windowSize:list[int] = [800, 600]
         windowSize:list[int] = [1280, 720]
 
-        barSpeed:float = 500.0
-
     def loadAssets(self) -> None:
         self.assets.loadImage("logo", "assets/logo.png")
-        self.sounds.loadSound("puck", "assets/sfx/puck.mp3", 20)
-        self.sounds.loadSound("puck2", "assets/sfx/puck2.mp3", 20)
+        self.sounds.loadSound("puck", "assets/sfx/puck.mp3", 100)
+        self.sounds.loadSound("puck2", "assets/sfx/puck2.mp3", 100)
 
     def __init__(self) -> None:
         self.clock = pg.time.Clock()
@@ -51,28 +49,23 @@ class Pong2:
 
     def update(self) -> None:
         self.devDisplay.setTextField("DT", f"{self.state.deltaTime}")
-        self.devDisplay.setTextField("FPS", f"{self.settings.fps}")
+        self.devDisplay.setTextField("FPS", f"{self.clock.get_fps()}")
 
         if self.events.keyPressed(inputs.Keyboard.Escape): self.state.running = False
         
         if self.events.keyTriggered(inputs.Keyboard.F1): self.board.start()
         if self.events.keyTriggered(inputs.Keyboard.F2): self.board.reset()
-        
-        if self.events.keyTriggered(inputs.Keyboard.F5): self.settings.fps = 60.0
-        if self.events.keyTriggered(inputs.Keyboard.F6): self.settings.fps = 75.0
-        if self.events.keyTriggered(inputs.Keyboard.F7): self.settings.fps = 144.0
 
         if self.events.keyPressed(inputs.Keyboard.A): self.board.player1.moveLeft()
         if self.events.keyPressed(inputs.Keyboard.D): self.board.player1.moveRight()
         if self.events.keyPressed(inputs.Keyboard.W): self.board.player1.moveUp()
         if self.events.keyPressed(inputs.Keyboard.S): self.board.player1.moveDown()
-
+        
         if self.events.keyPressed(inputs.Keyboard.Left):self.board.player2.moveLeft()
         if self.events.keyPressed(inputs.Keyboard.Right):self.board.player2.moveRight()
         if self.events.keyPressed(inputs.Keyboard.Up): self.board.player2.moveUp()
         if self.events.keyPressed(inputs.Keyboard.Down): self.board.player2.moveDown()
 
-        self.particles.update(self.state.deltaTime)
         self.physics.update(
             self.settings.windowSize,
             self.state.deltaTime,
@@ -80,6 +73,7 @@ class Pong2:
             self.sounds
         )
         self.board.update(self.state.deltaTime)
+        self.particles.update(self.state.deltaTime)
 
     def postProcessing(self) -> None:
         # bar particles
@@ -87,6 +81,17 @@ class Pong2:
         for player in self.board.players:
             playerBar = self.board.players[player]["bar"]
             if playerBar.velocity[0] != 0 or playerBar.velocity[1] != 0:
+                # full bar trail
+                if playerBar.flashTime:
+                    self.particles.addParticle(
+                        lifeSpan=0.1,
+                        size=playerBar.size,
+                        location=playerBar.location,
+                        velocity=[
+                            -(playerBar.velocity[0] / abs(playerBar.velocity[0] + 1)),
+                            -(playerBar.velocity[1] / abs(playerBar.velocity[1] + 1))
+                        ], color=playerBar.color, wireSize=1
+                    )
                 # top bar trail
                 self.particles.addParticle(
                     lifeSpan=0.1,
