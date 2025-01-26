@@ -26,41 +26,52 @@ class PPhysics:
             if player.velocity[1] >= 0:
                 player.velocity[1] = 0
         
-    def aabb(self, player: pBar.PBar, puck, soundHandler: sfx.SoundHandler) -> None:
-        if puck.velocity[0] > 0:
-            if puck.rect.colliderect(player.rect):
-                soundHandler.playSound("puck")
-                overlap = player.rect.left - puck.rect.right
-                puck.location[0] += overlap
-                puck.velocity[0] = -puck.speed
-                puck.velocity[1] += (player.velocity[1] / 4)
-                
-                player.location[0] -= overlap
-                
-        elif puck.velocity[0] < 0:
-            if puck.rect.colliderect(player.rect):
-                soundHandler.playSound("puck")
-                overlap = player.rect.right - puck.rect.left
-                puck.location[0] += overlap
-                puck.velocity[0] = puck.speed
-                puck.velocity[1] += (player.velocity[1] / 4)
-                
-                player.location[0] -= overlap
+    def aabb(self, player: pBar.PBar, puck: pPuck.PPuck) -> bool:
+        if (not(
+            (puck.location[1] + puck.size[1]) < player.location[1] or
+            puck.location[0] > (player.location[0] + player.size[0]) or
+            puck.location[1] > (player.location[1] + player.size[1]) or
+            (puck.location[0] + puck.size[0]) < player.location[0]
+        )): return True
+        else: return False
 
-    def checkBounds(self, windowSize: list[int], puck: pPuck.PPuck, soundHandler: sfx.SoundHandler) -> None:
+    def checkCollisions(self, soundHandler: sfx.SoundHandler) -> None:
+        rot_speed = 200 * (-1 if self.board.puck.velocity[1] < 0 else 1)
+        if self.aabb(self.board.player1, self.board.puck):
+            soundHandler.playSound("puck")
+            self.board.puck.location[0] = (self.board.player1.location[0] + self.board.player1.size[0]) + 1
+            self.board.puck.velocity[0] = -self.board.puck.velocity[0]
+            self.board.player1.onHit(rot_speed)
+
+        if self.aabb(self.board.player2, self.board.puck):
+            soundHandler.playSound("puck")
+            self.board.puck.location[0] = (self.board.player2.location[0] - self.board.puck.size[0]) - 1
+            self.board.puck.velocity[0] = -self.board.puck.velocity[0]
+            self.board.player2.onHit(-rot_speed)
+
+    def checkBounds(self, windowSize: list[int], soundHandler: sfx.SoundHandler) -> None:
         # puck vertical bounce
-        if puck.velocity[1] < 0 and (puck.location[1] + 1) < 0:
-            puck.velocity[1] = puck.speed
-            puck.location[1] = 0
+        if self.board.puck.location[1] <= 0:
             soundHandler.playSound("puck2")
-        if puck.velocity[1] > 0 and ((puck.location[1] + puck.size[1]) + 1) > windowSize[1] - puck.size[1]:
-            puck.velocity[1] = -puck.speed
-            puck.location[1] = windowSize[1] - puck.size[1]
-            soundHandler.playSound("puck2")  # different sound than puck, would make it old quick
+            self.board.puck.location[1] = 1
+            self.board.puck.velocity[1] = -self.board.puck.velocity[1]
+        elif (self.board.puck.location[1] + self.board.puck.size[1]) >= windowSize[1]:
+            soundHandler.playSound("puck2")
+            self.board.puck.location[1] = (windowSize[1] - self.board.puck.size[1]) - 1
+            self.board.puck.velocity[1] = -self.board.puck.velocity[1]
+
+        # puck horizontal bounce
+        if self.board.puck.location[0] <= 0:
+            soundHandler.playSound("puck2")
+            self.board.puck.location[0] = 1
+            self.board.puck.velocity[0] = -self.board.puck.velocity[0]
+        elif (self.board.puck.location[0] + self.board.puck.size[0]) >= windowSize[0]:
+            soundHandler.playSound("puck2")
+            self.board.puck.location[0] = (windowSize[0] - self.board.puck.size[0]) - 1
+            self.board.puck.velocity[0] = -self.board.puck.velocity[0]
 
     def update(self, windowSize: list[int], deltaTime: float, soundHandler: sfx.SoundHandler) -> None:
+        self.checkBounds(windowSize, soundHandler)
+        self.checkCollisions(soundHandler)
         for player in self.board.players:
             self.friction(player, deltaTime)
-            for puck in self.board.pucks:
-                self.checkBounds(windowSize, puck, soundHandler)
-                self.aabb(player, puck, soundHandler)

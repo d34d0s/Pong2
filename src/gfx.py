@@ -4,19 +4,43 @@ from pygame.math import Vector2
 
 # ------------------------------------------------------------ #
 class Sprite(pg.sprite.Sprite):
-    def __init__(self, size:list[int], location:list[float], color:list[int]=[0, 255, 0]) -> None:
+    def __init__(self, size: list[int], speed: float, location: list[float], color: list[int] = [0, 25, 25], rotate: bool = False) -> None:
         super().__init__([])
         self.size = size
         self.color = color
-        self.image = pg.Surface(size)
-        self.image.fill(color)
-        self.velocity = Vector2(0, 0)
-        self.location = Vector2(location)
-        self.rect = pg.Rect(location, size)
+        self.speed = speed
+
+        self._image = pg.Surface(size, pg.SRCALPHA)  # Use SRCALPHA for transparency
+        self._image.fill(color)
+
+        self.image = self._image
+        self.rect = self.image.get_rect(topleft=location)
+
+        self.rotation = 0.0
+        self.rot_speed = 0.0
+        self.rotate: bool = rotate
+        self.velocity = pg.math.Vector2(0, 0)
+        self.location = pg.math.Vector2(location)
 
     def update(self, deltaTime: float) -> None:
         self.location += self.velocity * deltaTime
         self.rect.topleft = self.location
+
+        if self.rotate and self.rot_speed != 0:
+            self.rotation += self.rot_speed * deltaTime
+
+            self.rot_speed *= 0.9
+            if abs(self.rot_speed) < 0.1:
+                self.rot_speed = 0.0
+
+            self.image = pg.transform.rotate(self._image, -self.rotation)
+            self.rect = self.image.get_rect(center=self.rect.center)
+        
+        # normalize rotation to -180 to 180
+        if self.rotation > 180:
+            self.rotation -= 360
+        elif self.rotation < -180:
+            self.rotation += 360
 # ------------------------------------------------------------ #
 
 # ------------------------------------------------------------ #
@@ -101,7 +125,7 @@ class Animation:
 # ------------------------------------------------------------ #
 class Particle(Sprite):
     def __init__(self, lifeSpan: float, size:list[int], location:list[float], color:list[int]=[0, 255, 0]) -> None:
-        super().__init__(size, location, color)
+        super().__init__(size, 0.0, location, color)
         self.lifeSpan: float = lifeSpan
 
     def kill(self) -> None:

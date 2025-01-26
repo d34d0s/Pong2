@@ -19,51 +19,52 @@ class PBoard:
         self.leftGoal:pg.Surface = gfx.createSurface([100, windowSize[1]], [0, 0, 0])
         self.rightGoal:pg.Surface = gfx.createSurface([100, windowSize[1]], [0, 0, 0])
 
-        self.puckSize = [16, 16]
-        self.puckSpawn = [
+        self.puckSize = Vector2(16, 16)
+        self.puckSpawn = Vector2(
             self.windowSize[0] / 2 - (self.puckSize[0] / 2),
             self.windowSize[1] / 2 - self.puckSize[1] / 2
-        ]
+        )
 
-        self.barSize = [16, self.windowSize[1] / 4]
-        self.barSpawn1 = [
+        self.barSize = Vector2(16, self.windowSize[1] / 4)
+        self.barSpawn1 = Vector2(
             self.windowSize[0] / 8,
             self.windowSize[1] / 2 - self.barSize[1] / 2
-        ] 
-        self.barSpawn2 = [
+        )
+        self.barSpawn2 = Vector2(
             self.windowSize[0] - self.barSpawn1[0] - self.barSize[0],
             self.barSpawn1[1]
-        ]
+        )
 
-        self.puck:pPuck.PPuck = None
+        self.puck:pPuck.PPuck = pPuck.PPuck(self.puckSize, self.puckSpawn.copy())
         self.player1: pBar.PBar = pBar.PBar(self.barSize, self.barSpawn1.copy(), [255, 255, 255])
         self.player2: pBar.PBar = pBar.PBar(self.barSize, self.barSpawn2.copy(), [255, 255, 255])
-        self.pucks:list[pPuck.PPuck] = [pPuck.PPuck(self.puckSize, self.puckSpawn.copy())]
-        self.puck = self.pucks[len(self.pucks) - 1]
         self.players:list[pBar.PBar] = [self.player1, self.player2]
 
     def start(self) -> None:
+        self.puck.location = self.puckSpawn.copy()
         self.puck.velocity[0] = random.choice([-self.puck.speed, self.puck.speed])
+        self.puck.velocity[1] = random.choice([-self.puck.speed, self.puck.speed])
+        
         self.player1.location = self.barSpawn1.copy()
         self.player2.location = self.barSpawn2.copy()
 
     def reset(self) -> None:
+        self.scores = [0, 0]
+        
         self.puck.velocity = Vector2(0.0, 0.0)
         self.puck.location = self.puckSpawn.copy()
+        
+        self.player1.location = self.barSpawn1.copy()
+        self.player2.location = self.barSpawn2.copy()
 
     def isGoal(self, puck: pPuck.PPuck) -> bool:
         result = False
-        if puck.velocity[0] < 0:
-            if puck.location[0] + puck.size[0] <= -puck.size[0]:
-                if self.scores[0] - 1 >= 0: self.scores[0] -= 1
-                self.scores[1] += 1
-                result = True
-
-        if puck.velocity[0] > 0:
-            if puck.location[0] >= self.windowSize[0] + puck.size[0]:
-                self.scores[0] += 1
-                if self.scores[1] - 1 >= 0: self.scores[1] -= 1
-                result = True
+        if puck.location[0] <= 0:
+            self.scores[1] += 1
+            result = True
+        elif (puck.location[0] + puck.size[0]) >= self.windowSize[0]:
+            self.scores[0] += 1
+            result = True
         return result
 
     def renderScores(self, target: pg.Surface) -> None:
@@ -86,11 +87,8 @@ class PBoard:
         self.renderScores(target)
 
     def update(self, deltaTime:float) -> None:
-        for puck in self.pucks:
-            puck.update(deltaTime)
-            
-            if self.isGoal(puck):
-                self.reset()
+        self.puck.update(deltaTime)
+        self.isGoal(self.puck)
 
         # player halfMark bound
         if self.player1.location[0] + self.player1.size[0] > self.windowSize[0] / 2:
