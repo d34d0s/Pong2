@@ -1,4 +1,4 @@
-import random
+import math, random
 import sfx, gfx, vfx
 import pBar, pPuck, pBoard
 
@@ -38,20 +38,36 @@ class PPhysics:
 
     def collisionFX(self, particleSystem: gfx.ParticleSystem, soundHandler: sfx.SoundManager) -> None:
         soundHandler.playSound("puck")
-        
 
     def checkCollisions(self, particleSystem: gfx.ParticleSystem, soundHandler: sfx.SoundManager) -> None:
         rotSpeed = 500 * (-1 if self.board.puck.velocity[1] < 0 else 1)
+
+        def variableBounce(player: pBar.PBar, puck: pPuck.PPuck) -> None:
+            # calculate relative hit position
+            playerCenter = player.location[1] + (player.size[1] / 2)
+            relativeHit = (puck.location[1] + (puck.size[1] / 2)) - playerCenter
+
+            # normalize relative hit (-1 to 1)
+            normalizedHit = relativeHit / (player.size[1] / 2)
+            normalizedHit = max(-1, min(1, normalizedHit))  # Clamp to [-1, 1]
+
+            # adjust the puck's vertical velocity based on hit position
+            # convert bounce angle to radians and compute new velocity
+            bounceAngle = 90 * normalizedHit
+            speed = (puck.velocity[0]**2 + puck.velocity[1]**2)**0.5  # preserve puck speed
+            puck.velocity[1] = speed * math.sin(math.radians(bounceAngle))
+            puck.velocity[0] = -puck.velocity[0]
+
         if self.aabb(self.board.player1, self.board.puck) and self.board.puck.velocity[0] < 0:
             self.board.puck.location[0] = (self.board.player1.location[0] + self.board.player1.size[0]) + 1
-            self.board.puck.velocity[0] = -self.board.puck.velocity[0]
+            variableBounce(self.board.player1, self.board.puck)
             self.collisionFX(particleSystem, soundHandler)
             self.board.player1.onHit(rotSpeed)
             self.board.puck.onHit()
 
         if self.aabb(self.board.player2, self.board.puck) and self.board.puck.velocity[0] > 0:
             self.board.puck.location[0] = (self.board.player2.location[0] - self.board.puck.size[0]) - 1
-            self.board.puck.velocity[0] = -self.board.puck.velocity[0]
+            variableBounce(self.board.player2, self.board.puck)
             self.collisionFX(particleSystem, soundHandler)
             self.board.player2.onHit(-rotSpeed)
             self.board.puck.onHit()

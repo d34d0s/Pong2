@@ -23,7 +23,7 @@ class PBoard:
         self.soundManager: sfx.SoundManager = soundManager
         self.particleSystem: gfx.ParticleSystem = particleSystem
 
-        self.puckSize = [32, 32]
+        self.puckSize = [48, 48]
         self.puckSpawn = Vector2(
             self.windowSize[0] / 2 - (self.puckSize[0] / 2),
             self.windowSize[1] / 2 - self.puckSize[1] / 2

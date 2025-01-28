@@ -25,4 +25,4 @@ class PPuck(gfx.Sprite):
 
     def update(self, deltaTime:float) -> None:
         super().update(deltaTime)
-        self.rotSpeed = (self.velocity[0] * 2)
+        self.rotSpeed = (self.velocity[0] / 2)
