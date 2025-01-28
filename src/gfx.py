@@ -3,6 +3,30 @@ import pygame as pg
 from pygame.math import Vector2
 
 # ------------------------------------------------------------ #
+class Window:
+    def __init__(self, width: int, height: int, title: str) -> None:
+        self.zoom: float = 1.0
+        self.size: list[int] = [width, height]
+        self.display: pg.Surface = pg.Surface([width, height])
+        self.window: pg.Surface = pg.display.set_mode([width, height], pg.WINDOWPOS_CENTERED)
+        pg.display.set_caption(title)
+
+    def fill(self, color: list[int]) -> None:
+        self.display.fill(color)
+        self.window.fill(color)
+
+    def blit(self, surface: pg.Surface, location: list[float]) -> None:
+        self.display.blit(surface, location)
+
+    def render(self) -> None:
+        self.window.blit(
+            dest = [0, 0],
+            source = pg.transform.scale(self.display, [self.size[0] / self.zoom, self.size[1] / self.zoom])
+        )
+        pg.display.flip()
+# ------------------------------------------------------------ #
+
+# ------------------------------------------------------------ #
 class Sprite(pg.sprite.Sprite):
     def __init__(self, size: list[int], speed: float, location: list[float], color: list=[255, 255, 255], rotate: bool = False) -> None:
         super().__init__([])
@@ -264,6 +288,62 @@ def flipSurface(surface:pg.Surface, x:bool, y:bool) -> pg.Surface:
 
 def fillSurface(surface:pg.Surface, color:list[int]) -> None:
     surface.fill(color)
+
+import pygame
+
+def createSurfaceFADE(size, color, dx, dy):
+    """
+    Creates a surface with a color fading out to transparency in a given direction.
+    
+    Args:
+        size (tuple): Width and height of the surface.
+        color (tuple): RGB color to fade out.
+        direction (str): Direction of fade ('left', 'right', 'up', 'down').
+    
+    Returns:
+        pygame.Surface: Surface with the fade effect.
+    """
+    width, height = size
+    fade_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+    r, g, b = color
+
+    if dx != 0:
+        for x in range(width):
+            alpha = 255 - int((x / width) * 255) if dx < 0 else int((x / width) * 255)
+            pygame.draw.line(fade_surface, (r, g, b, alpha), (x, 0), (x, height - 1))
+    elif dy != 0:
+        for y in range(height):
+            alpha = 255 - int((y / height) * 255) if dy > 0 else int((y / height) * 255)
+            pygame.draw.line(fade_surface, (r, g, b, alpha), (0, y), (width - 1, y))
+    
+    return fade_surface
+
+def createSurfaceLERP(size, start_color, end_color):
+    """
+    Creates a surface with a gradient linearly-interpolating between two colors.
+    
+    Args:
+        size (tuple): Width and height of the surface.
+        start_color (tuple): Starting RGB color.
+        end_color (tuple): Ending RGB color.
+    
+    Returns:
+        pygame.Surface: Surface with the gradient effect.
+    """
+    width, height = size
+    gradient_surface = pygame.Surface((width, height))
+    sr, sg, sb = start_color
+    er, eg, eb = end_color
+
+    for x in range(width):
+        # Interpolate color
+        t = x / (width - 1) if width > 1 else 0
+        r = int(sr + (er - sr) * t)
+        g = int(sg + (eg - sg) * t)
+        b = int(sb + (eb - sb) * t)
+        pygame.draw.line(gradient_surface, (r, g, b), (x, 0), (x, height - 1))
+    
+    return gradient_surface
 
 def naturalKey(string_) -> list[int] :
     return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', string_)]

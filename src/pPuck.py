@@ -6,7 +6,11 @@ import pygame as pg
 class PPuck(gfx.Sprite):
     def __init__(self, size, location, color = [255, 255, 255]):
         super().__init__(size, 600.0, location, color, rotate=True)
+        self.hit: bool = False
 
+    def onHit(self) -> None:
+        self.hit = True
+    
     def moveRight(self) -> None:
         self.velocity[0] = self.speed
     

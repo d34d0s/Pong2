@@ -1,6 +1,6 @@
 import pygame as pg
 
-class SoundHandler:
+class SoundManager:
     def __init__(self) -> None:
         pg.mixer.init()
         self.globalVolume: float = 100.0

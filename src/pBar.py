@@ -2,11 +2,13 @@ import gfx
 from pygame.math import Vector2
 
 class PBar(gfx.Sprite):
-    def __init__(self, size, location, color=[255, 255, 255], name="Pong2.Player"):
+    def __init__(self, facing: int, size, location, color=[255, 255, 255], name="Pong2.Player"):
         super().__init__(size, 500.0, location, color, rotate=True)
         self.name: str = name
         self.hit: bool = False
         self.flashTime: float = 0.0
+        self.facing: int = facing # (specify which half of the court the pBar faces) -1 left | 1 right
+        self.setImage(gfx.createSurfaceFADE(self.size, self.color, self.facing, 0))
 
     def onHit(self, rotSpeed: float) -> None:
         self.rotSpeed = rotSpeed
@@ -16,7 +18,7 @@ class PBar(gfx.Sprite):
     def update(self, deltaTime: float) -> None:
         super().update(deltaTime)
         if self.hit:
-            self.rotation *= (40/100)
+            self.rotation *= (60/100)
             if abs(self.rotation) < 0.1:
                 self.rotSpeed = 0.0
                 self.rotation = 0.0
@@ -27,4 +29,4 @@ class PBar(gfx.Sprite):
             self.fillImage([255, 255, 255])
             if self.flashTime <= 0.0:
                 self.flashTime = 0.0
-                self.fillImage(self.color)
+                self.setImage(gfx.createSurfaceFADE(self.size, self.color, self.facing, 0))
