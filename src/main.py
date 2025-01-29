@@ -3,18 +3,23 @@ import pygame as pg
 import gfx, sfx, vfx, events, inputs
 
 import pBar, pPuck, physics, pBoard
-from backend import  client
 
-class Pong2:
-    class state:
-        running:bool = True
-        deltaTime:float = 0.0
-        clearColor:list[int] = [0, 0, 0]
+import d34dnet as dnet
+
+class Pong2(dnet.inet.BaseClient):
+    class game_state:
+        pong2id: str = None
+        player_id: str = None
+        opponent_id: str = None
+        running: bool = True
+        deltaTime: float = 0.0
+        clearColor: list[int] = [0, 0, 0]
+
 
     class settings:
         fps:float = 75.0
         sfxVolume: float = 15.5
-        windowSize:list[int] = [1280, 720]
+        windowSize: list[int] = [1280, 720]
 
     def loadAssets(self) -> None:
         self.assets.loadImage("logo", "assets/logo.png")
@@ -22,6 +27,7 @@ class Pong2:
         self.sounds.loadSound("puck2", "assets/sfx/puck2.mp3", self.settings.sfxVolume)
 
     def __init__(self) -> None:
+        super().__init__()
         self.clock = pg.time.Clock()
         
         self.window: gfx.Window = gfx.Window(*self.settings.windowSize, "Pong2")
@@ -34,8 +40,8 @@ class Pong2:
         self.assets = gfx.AssetManager()
         self.loadAssets()
         pg.display.set_icon(self.assets.getImage("logo"))
-       
-        self.board:pBoard.PBoard = pBoard.PBoard(
+
+        self.board: pBoard.PBoard = pBoard.PBoard(
             self.settings.windowSize,
             self.renderer,
             self.assets,
@@ -44,35 +50,69 @@ class Pong2:
         )
         self.physics = physics.PPhysics(self.board)
 
+        self.player = self.board.player1
+        self.opponent = self.board.player2
         self.devDisplay = gfx.DevDisplay([200, 200], [0, self.window.size[1] - 100], "assets/fonts/megamax.ttf")
-        self.client = client.P2Client("D34D.DEV", [*self.board.player1.location])
+
+        self.set_state("log-stdout", False)
+
+    def on_connect(self):
+        self.log_stdout(f"pong2 client connected to server: {self.address}")
+
+    def on_disconnect(self):
+        self.write(self.build_request("disconnect", {"pid": self.pid}))
+ 
+    def on_read(self, response: dict) -> None:
+        method = response.get("method")
+        params = response.get("params")
+        match method.lower():
+            case "join":
+                self.game_state.pong2id = params.get("pong2id")
+                if "1" in self.game_state.pong2id:
+                    self.player = self.board.player1
+                    self.opponent = self.board.player2
+                    self.game_state.player_id = "player1"
+                    self.game_state.opponent_id = "player2"
+                else:
+                    self.player = self.board.player2
+                    self.opponent = self.board.player1
+                    self.game_state.player_id = "player2"
+                    self.game_state.opponent_id = "player1"
+            case "move":
+                player_info = params.pop(self.game_state.pong2id)
+                self.player.location = player_info["location"]
+                try:
+                    opponent_info = params.pop(self.game_state.opponent_id.replace("player", "p"))
+                    self.opponent.location = opponent_info["location"]
+                except KeyError: pass # no other player connected!
 
     def update(self) -> None:
-        self.devDisplay.setTextField("DT", f"{self.state.deltaTime}")
+        self.devDisplay.setTextField("DT", f"{self.game_state.deltaTime}")
         self.devDisplay.setTextField("FPS", f"{self.clock.get_fps()}")
 
-        if self.events.keyPressed(inputs.Keyboard.Escape): self.state.running = False
+        if self.events.keyPressed(inputs.Keyboard.Escape): self.game_state.running = False
         
         if self.events.keyTriggered(inputs.Keyboard.F1): self.board.start()
         if self.events.keyTriggered(inputs.Keyboard.F2): self.board.fullReset()
+        if self.events.keyTriggered(inputs.Keyboard.F3): self.connect()
 
-        if self.events.keyPressed(inputs.Keyboard.A): self.board.player1.moveLeft()
-        if self.events.keyPressed(inputs.Keyboard.D): self.board.player1.moveRight()
-        if self.events.keyPressed(inputs.Keyboard.W): self.board.player1.moveUp()
-        if self.events.keyPressed(inputs.Keyboard.S): self.board.player1.moveDown()
+        if self.events.keyPressed(inputs.Keyboard.A):
+            self.player.moveLeft()
+
+        if self.events.keyPressed(inputs.Keyboard.D): self.player.moveRight()
+        if self.events.keyPressed(inputs.Keyboard.W): self.player.moveUp()
+        if self.events.keyPressed(inputs.Keyboard.S): self.player.moveDown()
         
-        if self.events.keyPressed(inputs.Keyboard.Left):self.board.player2.moveLeft()
-        if self.events.keyPressed(inputs.Keyboard.Right):self.board.player2.moveRight()
-        if self.events.keyPressed(inputs.Keyboard.Up): self.board.player2.moveUp()
-        if self.events.keyPressed(inputs.Keyboard.Down): self.board.player2.moveDown()
-
         self.physics.update(
             self.settings.windowSize,
-            self.state.deltaTime,
+            self.game_state.deltaTime,
             self.particles,
             self.sounds
         )
-        self.board.update(self.state.deltaTime)
+        self.board.update(self.game_state.deltaTime)
+
+        if self.get_state("connected"):
+            self.write(self.build_request("move", {"location": [*self.player.location],"pong2id": self.game_state.pong2id}))
 
     def postProcessing(self) -> None:
         # puck VFX
@@ -93,10 +133,10 @@ class Pong2:
             # bar trail effect
             if player.velocity[0] != 0 or player.velocity[1] != 0:
                 vfx.PBarTrail({"player": player, "particleSize": [4, 4]}, self.assets, self.particles)
-        self.particles.update(self.state.deltaTime)
+        self.particles.update(self.game_state.deltaTime)
 
     def render(self) -> None:
-        self.window.fill(self.state.clearColor)
+        self.window.fill(self.game_state.clearColor)
         self.board.render(self.window.display)
         self.renderer.render(self.window.display)
         self.postProcessing()
@@ -104,9 +144,10 @@ class Pong2:
         self.window.render()
  
     def run(self) -> None:
-        while self.state.running and self.events.update():
+        while self.game_state.running and self.events.update():
             self.update()
             self.render()
-            self.state.deltaTime = self.clock.tick(self.settings.fps) / 1000.0 # ms -> sec
+            self.game_state.deltaTime = self.clock.tick(self.settings.fps) / 1000.0 # ms -> sec
+        self.disconnect()
 
 Pong2().run()

@@ -117,6 +117,16 @@ class PBoard:
         self.renderer.addSprite(self.player1)
         self.renderer.addSprite(self.player2)
 
+    def getPlayerInfo(self, field: str) -> dict:
+        try:
+            return {
+                "player1": self.matchInfo["playerInfo"]["player1"].copy().pop(field),
+                "player2": self.matchInfo["playerInfo"]["player2"].copy().pop(field)
+            }
+        except KeyError as e:
+            print(f"playerInfo key not found: {field} | {e}\n")
+            return {}
+
     def start(self) -> None:
         self.puck.location = self.puckSpawn.copy()
         self.puck.velocity[0] = random.choice([-self.puck.speed, self.puck.speed])

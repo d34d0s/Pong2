@@ -265,7 +265,6 @@ class DevDisplay:
                 self.location[1] + (textSurface.get_size()[1] * (index + 1))
             ]
             window.blit(textSurface, textLocation)
-
 # ------------------------------------------------------------ #
 
 # ------------------------------------------------------------ #
