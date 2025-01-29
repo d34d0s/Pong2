@@ -1,10 +1,9 @@
 import random
-import pygame as pg
+from pygame.math import Vector2
+import pygame as pg, d34dnet as dnet
 import gfx, sfx, vfx, events, inputs
 
 import pBar, pPuck, physics, pBoard
-
-import d34dnet as dnet
 
 class Pong2(dnet.inet.BaseClient):
     class game_state:
@@ -54,7 +53,7 @@ class Pong2(dnet.inet.BaseClient):
         self.opponent = self.board.player2
         self.devDisplay = gfx.DevDisplay([200, 200], [0, self.window.size[1] - 100], "assets/fonts/megamax.ttf")
 
-        self.set_state("log-stdout", False)
+        # self.set_state("log-stdout", False)
 
     def on_connect(self):
         self.log_stdout(f"pong2 client connected to server: {self.address}")
@@ -62,6 +61,9 @@ class Pong2(dnet.inet.BaseClient):
     def on_disconnect(self):
         self.write(self.build_request("disconnect", {"pid": self.pid}))
  
+    def on_write(self, request) -> None:
+        self.log_stdout(f"request sent: {request}")
+
     def on_read(self, response: dict) -> None:
         method = response.get("method")
         params = response.get("params")
@@ -78,13 +80,21 @@ class Pong2(dnet.inet.BaseClient):
                     self.opponent = self.board.player1
                     self.game_state.player_id = "player2"
                     self.game_state.opponent_id = "player1"
-            case "move":
+            case "update":
                 player_info = params.pop(self.game_state.pong2id)
-                self.player.location = player_info["location"]
+                self.player.location = Vector2(player_info["location"])
+                self.player.velocity = Vector2(player_info["velocity"])
                 try:
-                    opponent_info = params.pop(self.game_state.opponent_id.replace("player", "p"))
-                    self.opponent.location = opponent_info["location"]
-                except KeyError: pass # no other player connected!
+                    opponent_pong2id = self.game_state.opponent_id.replace("player", "p")
+                    pucklocation = params.get("pucklocation")
+                    puckvelocity = params.get("puckvelocity")
+                    opponent_info = params.pop(opponent_pong2id)
+                    self.opponent.location = Vector2(opponent_info["location"])
+                    self.opponent.velocity = Vector2(opponent_info["velocity"])
+                    if self.game_state.player_id == "player2":  # player2 board state based on host
+                        self.board.puck.location = Vector2(pucklocation)
+                        self.board.puck.velocity = Vector2(puckvelocity)
+                except KeyError as e: pass # no other player connected!
 
     def update(self) -> None:
         self.devDisplay.setTextField("DT", f"{self.game_state.deltaTime}")
@@ -96,9 +106,7 @@ class Pong2(dnet.inet.BaseClient):
         if self.events.keyTriggered(inputs.Keyboard.F2): self.board.fullReset()
         if self.events.keyTriggered(inputs.Keyboard.F3): self.connect()
 
-        if self.events.keyPressed(inputs.Keyboard.A):
-            self.player.moveLeft()
-
+        if self.events.keyPressed(inputs.Keyboard.A): self.player.moveLeft()
         if self.events.keyPressed(inputs.Keyboard.D): self.player.moveRight()
         if self.events.keyPressed(inputs.Keyboard.W): self.player.moveUp()
         if self.events.keyPressed(inputs.Keyboard.S): self.player.moveDown()
@@ -111,9 +119,14 @@ class Pong2(dnet.inet.BaseClient):
         )
         self.board.update(self.game_state.deltaTime)
 
-        if self.get_state("connected"):
-            self.write(self.build_request("move", {"location": [*self.player.location],"pong2id": self.game_state.pong2id}))
-
+        self.write(self.build_request("update", {
+            "velocity": [*self.player.velocity],
+            "location": [*self.player.location],
+            "puckvelocity": [*self.board.puck.velocity],
+            "pucklocation": [*self.board.puck.location],
+            "pong2id": self.game_state.pong2id
+        }))
+       
     def postProcessing(self) -> None:
         # puck VFX
         # puck trail effect

@@ -1,6 +1,8 @@
 import pygame as pg
 import d34dnet as dnet
 
+# TODO: consider moving server-side code to the PBoard object as it already houses all the same info.
+
 class Pong2Server(dnet.inet.BaseServer):
     def __init__(self):
         super().__init__(ip = "127.0.0.1", port = 8080)
@@ -18,8 +20,7 @@ class Pong2Server(dnet.inet.BaseServer):
 
     def on_connect(self, endpoint):
         pong2id = f"p{len(self.connections)}"
-        self.players[pong2id] = {"name": "pong2-player", "score": 0, "location": [100.0, 100.0]}
-        self.log_stdout(self.server_data)
+        self.players[pong2id] = {"name": "pong2-player", "velocity": [0.0, 0.0], "location": [100.0, 100.0]}
         self.queue_response(endpoint.getpeername(),self.build_response("join", {"pong2id": pong2id}))
 
     def on_disconnect(self, endpoint):
@@ -29,14 +30,21 @@ class Pong2Server(dnet.inet.BaseServer):
         method = request.get("method")
         params = request.get("params")
         match method.lower():
-            case "move":
+            case "update":
                 pong2id = params.get("pong2id")
                 location = params.get("location")
+                velocity = params.get("velocity")
+                pucklocation = params.get("pucklocation")
+                puckvelocity = params.get("puckvelocity")
+                
                 self.server_data["players"][pong2id]["location"] = location
-                self.broadcast(self.build_response(
-                    "move",
-                    {k: v for (k, v) in self.players.items()}
-                ))
+                self.server_data["players"][pong2id]["velocity"] = velocity
+                
+                response = {k: v for (k, v) in self.players.items()}
+                response["pucklocation"] = pucklocation
+                response["puckvelocity"] = puckvelocity
+                
+                self.broadcast(self.build_response("update", response))
 
     def broadcast(self, response: dict) -> None:
         for addr in self.connections:
