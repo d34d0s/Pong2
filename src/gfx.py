@@ -203,19 +203,25 @@ class Particle(Sprite):
 
 # ------------------------------------------------------------ #
 class ParticleSystem:
-    def __init__(self, renderer: Renderer, location: list[int], maximum: int) -> None:
+    def __init__(self, assetManager: AssetManager, renderer: Renderer, location: list[int], maximum: int) -> None:
         self.particles = []
         self.maximum = maximum
         self.location = location
         self.renderer = renderer
+        self.assetManager = assetManager
 
-    def addParticle(self, lifeSpan: float, size: list[int], location, velocity:list[float]=Vector2(0, 0), color: list[int]=[255, 255, 255], wireSize: int=0) -> None:
+    def addParticle(self, lifeSpan: float, size: list[int], location, velocity:list[float]=Vector2(0, 0), color: list[int]=[255, 255, 255], wireSize: int=0, asset: str=None) -> None:
         if len(self.particles)+1 > self.maximum: return None
         particle = Particle(lifeSpan, size, [
             location[0] + self.location[0],
             location[1] + self.location[1]
         ], color, wireSize)
         particle.velocity = Vector2(velocity)
+        if asset:
+            try:
+                image = self.assetManager.getImage(asset)
+                particle.setImage(image)
+            except KeyError as e: pass
         self.particles.append(particle)
         self.renderer.addSprite(particle)
 

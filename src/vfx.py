@@ -41,7 +41,7 @@ class PPuckGoal(VFX):
             self.particleSystem.addParticle(
                 3.5, random.choice([[pow(2, i+1), pow(2, i+1)] for i in range(4)]),
                 data["location"], [random.randrange(-200, 400) * player.facing, random.randrange(-200, 400)],
-                wireSize=random.randint(1, 4), color=player.color
+                wireSize=random.randint(1, 4), color=player.color, asset=player.goalParticle
             )
 
 class PPuckWin(VFX):
@@ -52,7 +52,7 @@ class PPuckWin(VFX):
             self.particleSystem.addParticle(
                 3.4, random.choice([[pow(2, i+1), pow(2, i+1)] for i in range(4)]),
                 data["location"], [random.randrange(-1200, 1200) * player.facing, random.randrange(-1200, 1200)],
-                wireSize=1, color=player.color
+                wireSize=1, color=player.color, asset=player.winParticle
             )
 
 """ PBar VFX """

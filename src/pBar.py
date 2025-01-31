@@ -10,6 +10,11 @@ class PBar(gfx.Sprite):
         self.facing: int = facing # (specify which half of the court the pBar faces) -1 left | 1 right
         self.setImage(gfx.createSurfaceFADE(self.size, self.color, self.facing, 0))
 
+        # player cosmetics (asset strs)
+        self.barSkin: str = "default"
+        self.winParticle: str = "how"
+        self.goalParticle: str = "how"
+
     def onHit(self, rotSpeed: float) -> None:
         self.rotSpeed = rotSpeed
         self.flashTime = 0.2

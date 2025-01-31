@@ -71,7 +71,7 @@ class PBoard:
                         facing=1,
                         size=self.barSize,
                         location=self.barSpawn1,
-                        color=[255, 0, 17], name="Pong2Player1"
+                        color=[55, 210, 17], name="Pong2Player1"
                     )
                 },
                 "player2": {

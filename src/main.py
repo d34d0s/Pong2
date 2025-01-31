@@ -22,6 +22,7 @@ class Pong2(dnet.inet.BaseClient):
 
     def loadAssets(self) -> None:
         self.assets.loadImage("logo", "assets/logo.png")
+        self.assets.loadImage("how", "assets/particles/how.png")
         self.sounds.loadSound("puck", "assets/sfx/puck.mp3", self.settings.sfxVolume)
         self.sounds.loadSound("puck2", "assets/sfx/puck2.mp3", self.settings.sfxVolume)
 
@@ -34,10 +35,12 @@ class Pong2(dnet.inet.BaseClient):
         self.sounds = sfx.SoundManager()
         self.renderer = gfx.Renderer()
         self.events = events.EventHandler()
-        self.particles = gfx.ParticleSystem(self.renderer, [0, 0], 10_000)
         
         self.assets = gfx.AssetManager()
         self.loadAssets()
+
+        self.particles = gfx.ParticleSystem(self.assets, self.renderer, [0, 0], 10_000)
+        
         pg.display.set_icon(self.assets.getImage("logo"))
 
         self.board: pBoard.PBoard = pBoard.PBoard(
@@ -120,11 +123,11 @@ class Pong2(dnet.inet.BaseClient):
         self.board.update(self.game_state.deltaTime)
 
         self.write(self.build_request("update", {
+            "pong2id": self.game_state.pong2id,
             "velocity": [*self.player.velocity],
             "location": [*self.player.location],
             "puckvelocity": [*self.board.puck.velocity],
-            "pucklocation": [*self.board.puck.location],
-            "pong2id": self.game_state.pong2id
+            "pucklocation": [*self.board.puck.location]
         }))
        
     def postProcessing(self) -> None:
